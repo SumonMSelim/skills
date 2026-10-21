@@ -82,6 +82,10 @@ hr
 # 4. docker containers
 if [ "$DOCKER" = 1 ] && command -v docker >/dev/null 2>&1; then
   say "DOCKER containers with PHP:"
+  if docker ps --format '{{.Ports}}' 2>/dev/null | command grep -qE ':(80|443)->'; then
+    n=$(iptables -S DOCKER-USER 2>/dev/null | command grep -ciE 'cloudflare|-j (CLOUDFLARE|CF)' || true)
+    say "  web ports are Docker-published: ufw does not apply to them. DOCKER-USER Cloudflare rules: ${n:-0} (0 = origin reachable directly)"
+  fi
   docker ps --format '{{.ID}} {{.Names}} {{.Image}}' 2>/dev/null | while read -r id name image; do
     v=$(docker exec "$id" sh -c 'command -v php >/dev/null 2>&1 && php -v | head -1' 2>/dev/null | sed -E 's/^PHP ([0-9.]+).*\(([a-z-]+)\).*/\1 \2/')
     [ -n "$v" ] || continue

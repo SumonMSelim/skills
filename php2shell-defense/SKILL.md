@@ -123,7 +123,7 @@ Say which rung you recommend and why, in one line, then wait.
 
 
     scripts/php-mitigate.sh             # dry-run: shows what would be written where
-    scripts/php-mitigate.sh --apply     # writes templates/99-php2shell-mitigation.ini into each conf.d
+    scripts/php-mitigate.sh --apply     # writes templates/zzz-php2shell-mitigation.ini into each conf.d
 
 The drop-in sets `session.upload_progress.enabled=0` (confirmed CVE-2026-109619 path),
 `memory_limit=-1` (removes the controllable OOM of CVE-2026-109618; pair with a cgroup or

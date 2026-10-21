@@ -17,6 +17,15 @@ while [ $# -gt 0 ]; do
   esac; shift
 done
 command -v ufw >/dev/null 2>&1 || { echo "ufw not installed. On RHEL use firewalld; see reference/mitigations.md." >&2; exit 2; }
+# Docker publishes ports through its own iptables chains and bypasses ufw entirely.
+if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Ports}}' 2>/dev/null | command grep -qE '(0\.0\.0\.0|\[::\]|:):(80|443)->'; then
+  echo "WARNING: a container publishes port 80/443. ufw does NOT filter Docker-published ports; this script will not close them." >&2
+  if iptables -S DOCKER-USER 2>/dev/null | command grep -qiE 'cloudflare|-j (CLOUDFLARE|CF)'; then
+    echo "         A DOCKER-USER rule referencing Cloudflare already exists; verify it with: iptables -L DOCKER-USER -n" >&2
+  else
+    echo "         Add the allow-list to the DOCKER-USER chain instead (see reference/mitigations.md, Docker section)." >&2
+  fi
+fi
 
 # SSH port: explicit flag wins; otherwise read sshd_config so a non-default port is not locked out.
 sshd_port=$(command grep -hsiE '^[[:space:]]*Port[[:space:]]+[0-9]+' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf 2>/dev/null | awk '{print $2}' | head -1)

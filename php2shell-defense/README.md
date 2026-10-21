@@ -129,8 +129,8 @@ Illustrative session (shortened):
             verdict: VULNERABLE, FIX AVAILABLE (8.3.35 < 8.3.36). Class A: patch now.
 
     Dry-run of the stopgap (to apply while you schedule the patch):
-      WOULD WRITE /etc/php/8.3/fpm/conf.d/99-php2shell-mitigation.ini
-      WOULD WRITE /etc/php/8.3/cli/conf.d/99-php2shell-mitigation.ini
+      WOULD WRITE /etc/php/8.3/fpm/conf.d/zzz-php2shell-mitigation.ini
+      WOULD WRITE /etc/php/8.3/cli/conf.d/zzz-php2shell-mitigation.ini
     Restart needed afterwards (PHP: restart every worker): sudo systemctl restart php8.3-fpm
     Apply and restart? (y/n)
 
@@ -190,7 +190,7 @@ Already logged in on the host? Copy the folder there and run the same commands w
 ## What it changes on your host
 
 Nothing, unless you pass `--apply`:
-- `php-mitigate.sh --apply` creates `99-php2shell-mitigation.ini` in each PHP `conf.d` it finds
+- `php-mitigate.sh --apply` creates `zzz-php2shell-mitigation.ini` in each PHP `conf.d` it finds
   (backs up an existing copy). It does not restart anything; you do.
 - `cf-origin-lockdown.sh --apply` runs `ufw --force reset`, sets default deny incoming, allows the
   SSH port (from `sshd_config` or `--ssh-port`), allows web ports from Cloudflare ranges only,

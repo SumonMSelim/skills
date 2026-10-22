@@ -25,7 +25,9 @@ Files in this skill:
 - `reference/facts.md`           what is confirmed vs. unverified, timeline, sources (re-verify, see step 1)
 - `reference/internals.md`       how rfc1867 + session.upload_progress work, what each ini knob really does and does not do
 - `reference/mitigations.md`     edge/WAF/nginx/Apache/Cloudflare/ModSecurity snippets, per-SAPI ini placement
-- `reference/patching.md`        upgrade paths per distro, Docker, shared hosting, and options for EOL PHP (8.1 and older)
+- `reference/patching.md`        upgrade paths per distro, Docker, shared hosting
+- `reference/eol.md`             fixing EOL PHP (7.4 / 8.0 / 8.1): vendor status table, decision table, and four routes with commands
+- `scripts/php-eol-source-build.sh` build a fixed 7.4 / 8.0 / 8.1 from PHP's backport branch into its own prefix (dry-run default, `--build` to run)
 - `reference/detection.md`       log patterns, EDR rules, IOCs
 - `templates/`                   drop-in files used by the scripts and references
 
@@ -105,7 +107,11 @@ Classify every PHP instance and decide the path with the user:
   patch will take (package not yet in the distro, change window, image rebuild, tests). If the
   answer is more than about an hour, mitigate first (step 3), then patch.
 - **B: supported branch, fix not yet released** -> mitigate now (step 3), patch the moment it ships.
-- **C: EOL (8.1 and older)** -> no upstream fix. Mitigate, then either isolate (VPN / IP allow-list / offline) or migrate. See `reference/patching.md` "EOL".
+- **C: EOL (8.1 and older)** -> no PHP release, but fixes exist: vendor packages (Ubuntu 22.04,
+  Ubuntu Pro ESM, deb.sury.org for jammy/noble, RHEL, Debian LTS), PHP's own source backport
+  branches, a container on a supported PHP, or an OS upgrade. Mitigate first, then walk the
+  decision table in `reference/eol.md` with the user and run the chosen route. Do not stop at
+  "EOL, cannot patch"; that is only true for PHP older than 7.4.
 - **D: internet-unreachable (internal tooling, cron-only CLI)** -> lower priority, still patch.
 
 Patching is the fix. Mitigation is what keeps the host alive until the patch lands. Do both

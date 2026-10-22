@@ -32,12 +32,14 @@ probes, never by detonation.
 | `scripts/cf-origin-lockdown.sh` | Only with `--apply`              | Rebuilds the `ufw` ruleset so web ports accept traffic only from Cloudflare IP ranges, keeping SSH open. **Resets existing ufw rules.** Dry-run by default.                  |
 | `scripts/php-hunt.sh`           | No                               | Read-only sweep for exploitation signs: worker segfaults, shells spawned by PHP workers, recently changed webroot files, webshell patterns, session artefacts, cron changes. |
 | `scripts/php-recovery-check.sh` | No | After the patch: lists every temporary measure still on the host (edge blocks, compose overrides, drop-ins, cgroup limits) and prints the recovery checklist, including testing every upload form. |
+| `scripts/php-eol-source-build.sh` | Only with `--build` | For PHP 7.4 / 8.0 / 8.1 with no vendor package: builds PHP's official backport branch into `/opt/php-X.Y-php2shell` with the host's own configure options. Never replaces the packaged PHP; `reference/eol.md` shows how to switch FPM over and back. |
 
 Supporting material:
 - `reference/facts.md` what is confirmed vs. unverified, timeline, sources
 - `reference/internals.md` how the multipart parser and `session.upload_progress` work, what each ini knob does and does not do
 - `reference/mitigations.md` edge rules (nginx, Apache, Traefik, ModSecurity, Cloudflare), per-SAPI ini placement
-- `reference/patching.md` upgrade paths per distro, Docker, shared hosting, EOL PHP
+- `reference/patching.md` upgrade paths per distro, Docker, shared hosting
+- `reference/eol.md` fixing EOL PHP 7.4 / 8.0 / 8.1: who ships a fix, which route to take, and the commands for each
 - `reference/detection.md` log patterns, auditd/Falco/osquery rules, log queries
 - `templates/` the ini drop-in and edge-block configs used above
 

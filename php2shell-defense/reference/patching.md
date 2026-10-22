@@ -24,7 +24,8 @@ the old binary mapped until restarted.
 | Managed hosting / PaaS (Heroku, Platform.sh, Vercel PHP, Laravel Forge/Vapor, Kinsta, WP Engine...) | ask provider for patch ETA; Forge-style: `forge` upgrade button after packages land | Vapor/Lambda custom runtimes must be rebuilt. |
 
 ## EOL branches (8.1, 8.0, 7.x, 5.x)
-No upstream release. Options in order:
+Full treatment with a vendor status table, decision table and commands: `reference/eol.md`.
+Summary, in order:
 1. Upgrade to 8.2+ now. Most 8.1 apps run on 8.2 with little or no change; 7.4 -> 8.2 needs testing.
 2. Distro/vendor backport: Debian LTS/ELTS (Freexian), Ubuntu Pro/ESM, RHEL 7/8 ELS, deb.sury.org, CloudLinux (alt-php). PHP says vendors received the patches in advance; check their trackers for the CVE IDs.
 3. Build from PHP's own minimal backport branches for **7.4, 8.0 and 8.1**: `PHP-7.4-CVE-2026-109618-109619`, `PHP-8.0-CVE-2026-109618-109619`, `PHP-8.1-CVE-2026-109618-109619` at https://github.com/php/php-src. Security fix only, no other changes; you own the build.

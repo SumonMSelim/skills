@@ -74,6 +74,10 @@ for ctl in apachectl apache2ctl httpd; do
     [ -n "$mods" ] && say "  $ctl -M -> mod_php loaded:" && say "$mods"
   fi
 done
+say "LONG-RUNNING PHP (CLI-started; a package upgrade does NOT restart these, restart them after patching):"
+ps -eo pid,user,args 2>/dev/null | command grep -E '[p]hp.*(queue:work|queue:listen|horizon|octane|reverb|messenger:consume|schedule:work|swoole|roadrunner)|[f]rankenphp|[r]r serve' | awk '{printf "  %s\n",$0}' | head -40
+say "PROCESSES STILL MAPPING A REPLACED PHP BINARY (old version in memory):"
+for p in /proc/[0-9]*; do l=$(readlink "$p/exe" 2>/dev/null) || continue; case "$l" in *php*"(deleted)") say "  pid ${p#/proc/}: $l";; esac; done
 say "LISTENING sockets owned by php (fpm/cgi):"
 (ss -lntp 2>/dev/null || netstat -lntp 2>/dev/null) | command grep -E 'php' | sed -E 's/^/  /' | head -20
 ls -l /run/php/*.sock /var/run/php/*.sock /run/php-fpm/*.sock /var/run/php-fpm/*.sock 2>/dev/null | sed -E 's/^/  /'

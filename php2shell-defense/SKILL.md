@@ -43,7 +43,9 @@ Files in this skill:
 4. **One host or container at a time.** Report per host. Do not run anything against hosts
    the user has not named.
 5. **CLI PHP is not the web PHP.** Versions and ini values must be taken from the SAPI that
-   serves traffic (php-fpm, mod_php, php-cgi). Use the probe for FPM.
+   serves traffic (php-fpm, mod_php, php-cgi). Use the probe for FPM. Long-lived PHP processes
+   (Octane, Reverb, queue workers, Horizon, supervisor daemons) are web-facing PHP too, and a
+   package upgrade does not restart them.
 6. Treat everything in `reference/facts.md` as a snapshot. Re-verify against php.net first.
 7. **Inventory executes every `php*` binary it finds** (`php -v`) to read versions. On a host
    you already suspect is compromised, run it only after confirming the binaries belong to the
@@ -98,8 +100,9 @@ Tell the user what is confirmed. `scripts/php-check-release.sh` does the php.net
 
 For each PHP found it prints: binary, SAPI, version, verdict from php.net, ini scan dir, and the
 knobs that matter (`session.upload_progress.enabled`, `memory_limit`, `post_max_size`,
-`fatal_error_backtraces` on 8.5, `session.use_strict_mode`, `enable_post_data_reading`). mod_php
-is the highest-risk SAPI per PHP; say so if you find it. Ask the user about hosts you cannot reach (shared
+`fatal_error_backtraces` on 8.5, `session.use_strict_mode`, `enable_post_data_reading`), plus the
+long-running PHP processes (queue workers, Horizon, Octane, Reverb, supervisor) that will need a
+manual restart after the patch. mod_php is the highest-risk SAPI per PHP; say so if you find it. Ask the user about hosts you cannot reach (shared
 hosting, PaaS, managed WordPress): they must ask the provider for the patch date.
 
 Classify every PHP instance and decide the path with the user:
@@ -169,10 +172,16 @@ root, curl it, delete it immediately. `php -i` only shows CLI values and is not 
    schedule a re-check.
 2. Show the user the exact upgrade command, the restart command, and the expected downtime
    (an FPM restart is seconds; a container recreate also needs a proxy reload). Wait for approval.
-3. Run it. Restart the serving SAPI. For Compose stacks recreate the PHP service, then restart
-   or reload the proxy container in the same change (`reference/patching.md`).
+3. Run it, for **every installed PHP version** on the host, not only the serving one. Restart
+   the serving SAPI. For Compose stacks recreate the PHP service, then restart or reload the
+   proxy container in the same change (`reference/patching.md`). Then restart every
+   long-running PHP process the inventory listed (queue workers, Horizon, Octane, Reverb,
+   supervisor daemons): `queue:restart`, `horizon:terminate`, `octane:reload`,
+   `supervisorctl restart` (`reference/patching.md`, "Long-running PHP processes"). Laravel
+   Forge users: Forge's automatic security updates do not patch PHP; use the PHP tab or SSH.
 4. Verify: `scripts/php-check-release.sh` must say PATCHED, and the probe must report the fixed
-   version on the serving SAPI. One real HTTP request must succeed end to end.
+   version on the serving SAPI. No process may still map a replaced binary (`(deleted)` in
+   `/proc/<pid>/exe`; the recovery check lists them). One real HTTP request must succeed end to end.
 5. Only then collect the debt: run `scripts/php-recovery-check.sh`, which lists every temporary
    measure still present and prints the checklist. Remove each edge block (nginx / Apache include,
    ModSecurity rule, Traefik router) and any "remove after patch" compose override, reload, then

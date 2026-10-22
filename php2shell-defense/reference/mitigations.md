@@ -9,7 +9,9 @@ Ladder, weakest to strongest. Each rung breaks more. Combine rungs; keep rung 1 
    - `memory_limit=-1`: removes the controllable OOM of CVE-2026-109618. Pair with a cgroup or
      container memory limit. Never `RLIMIT_AS`/`RLIMIT_DATA`.
    - `fatal_error_backtraces=0`: PHP 8.5 only, closes the confirmed mod_php producer.
-   - `post_max_size` low, `upload_max_filesize` below it, `max_input_nesting_level` low.
+   - `post_max_size` low, `upload_max_filesize` below it, `max_input_nesting_level` low. Calif
+     reports `post_max_size` can be bypassed in some configurations and that the memory pressure
+     can come from bodies under it: a speed bump, not a gate. Enforce size at the proxy too.
    - `session.use_strict_mode=1`: hygiene, not in PHP's list.
    These must apply **before request parsing**: php.ini, conf.d, FPM pool `php_admin_*`, Apache
    server config. **Not `ini_set()`, not FPM `.user.ini`.** Restart every worker afterwards.
@@ -61,7 +63,9 @@ Verify with `python3 -I scripts/php-fpm-probe.py` (FPM) or a temporary `ini_get`
   High confidence Signatures", Managed Response Firewall, all plans) that blocks a matching
   origin response before it leaves. Paid plans: confirm the Managed Ruleset is deployed in
   **Block** mode, not Log. Review hits under Security > Security Analytics > Events filtered by
-  those rule names; a hit before your patch time is an attempt against you. Cloudflare says
+  those rule names (ruleset ids: Free `77454fe2d30c4220b5701f6fdfb893ba`, paid Managed
+  `efb7b8c949ac4650a09736fc376e9aee`, response rule `afffe22785674c80a31875c848d2242a`); a hit
+  before your patch time is an attempt against you. Cloudflare says
   rules may change over the following days; watch the WAF changelog. Source:
   https://blog.cloudflare.com/php-vulnerabilities-waf-protection/
 - Add a custom rule as belt-and-braces: `(http.request.method eq "POST" and lower(http.request.headers["content-type"][0]) contains "multipart/form-data" and not http.request.uri.path in {"/wp-admin/async-upload.php" "/upload"})` -> Block.

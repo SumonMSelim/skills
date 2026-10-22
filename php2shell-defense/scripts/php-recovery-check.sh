@@ -5,7 +5,8 @@
 # Usage: php-recovery-check.sh [--webroot DIR ...]
 #   --webroot DIR   extra docroots to scan for .htaccess / .user.ini stopgaps (default: common paths)
 # Finds: ini drop-ins, nginx/Apache multipart blocks, ModSecurity rules, Traefik routers,
-# systemd MemoryMax overrides, Compose overrides, ufw/DOCKER-USER Cloudflare rules.
+# systemd MemoryMax overrides, Compose overrides, ufw/DOCKER-USER Cloudflare rules, and processes
+# still running a replaced (pre-patch) PHP binary.
 set -u
 ROOTS=()
 while [ $# -gt 0 ]; do
@@ -48,11 +49,20 @@ if command -v ufw >/dev/null 2>&1; then
 fi
 n=$(iptables -S DOCKER-USER 2>/dev/null | $G -ciE 'cloudflare|-j (CLOUDFLARE|CF)' || true); [ "${n:-0}" -gt 0 ] && found "DOCKER-USER: Cloudflare allow-list present (keep; same reasoning)"
 [ "$N" -gt "$K" ] || echo "  (none)"
+echo "-- must be empty: processes still running a replaced (pre-patch) PHP binary --"
+S=0
+for p in /proc/[0-9]*; do
+  l=$(readlink "$p/exe" 2>/dev/null) || continue
+  case "$l" in *php*"(deleted)") S=$((S+1)); printf '  pid %s: %s  %s\n' "${p#/proc/}" "$l" "$(tr '\0' ' ' < "$p/cmdline" 2>/dev/null | cut -c1-120)";; esac
+done
+[ "$S" -gt 0 ] && echo "  Restart these (queue:restart, horizon:terminate, octane:reload, supervisorctl restart, systemctl restart)." || echo "  (none)"
 
 cat <<'EOF'
 
 == Recovery checklist (run only after php-check-release.sh says PATCHED and the probe shows the fixed version) ==
 1. Confirm the fixed version on the SERVING SAPI, not the CLI: php-fpm-probe.py, or `docker exec c php -v` for official images.
+   Patch every installed PHP version (ls /etc/php), and restart long-running PHP: queue workers, Horizon, Octane, Reverb,
+   supervisor/systemd daemons. The "must be empty" list above has to be empty.
 2. Remove each edge block above (nginx include / Apache include / ModSecurity / Traefik router), `nginx -t` then reload.
    Keep backups outside any included directory.
 3. Test every upload form and multipart endpoint from a real browser or curl -F, one per site:

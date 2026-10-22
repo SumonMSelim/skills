@@ -31,6 +31,7 @@ probes, never by detonation.
 | `scripts/php-fpm-probe.py`      | Writes and deletes one temp file | Talks FastCGI to a running PHP-FPM and prints the *effective* version and ini values of the serving SAPI. CLI values can differ and are not evidence.                        |
 | `scripts/cf-origin-lockdown.sh` | Only with `--apply`              | Rebuilds the `ufw` ruleset so web ports accept traffic only from Cloudflare IP ranges, keeping SSH open. **Resets existing ufw rules.** Dry-run by default.                  |
 | `scripts/php-hunt.sh`           | No                               | Read-only sweep for exploitation signs: worker segfaults, shells spawned by PHP workers, recently changed webroot files, webshell patterns, session artefacts, cron changes. |
+| `scripts/php-recovery-check.sh` | No | After the patch: lists every temporary measure still on the host (edge blocks, compose overrides, drop-ins, cgroup limits) and prints the recovery checklist, including testing every upload form. |
 
 Supporting material:
 - `reference/facts.md` what is confirmed vs. unverified, timeline, sources
@@ -175,9 +176,11 @@ Same sequence by hand. Replace `user@host`, the PHP version and the webroot:
     ssh $H 'sudo ~/php2shell-defense/scripts/cf-origin-lockdown.sh'
     ssh $H 'sudo ~/php2shell-defense/scripts/cf-origin-lockdown.sh --apply'
     # 6. patch (reference/patching.md), then repeat 1 and 4
-    # 7. look for exploitation evidence
+    # 7. collect the temporary measures: list them, remove the edge blocks, test every upload form
+    ssh $H 'sudo ~/php2shell-defense/scripts/php-recovery-check.sh'
+    # 8. look for exploitation evidence
     ssh $H 'sudo ~/php2shell-defense/scripts/php-hunt.sh --webroot /var/www/html --days 3'
-    # 8. clean up
+    # 9. clean up
     ssh $H 'rm -rf ~/php2shell-defense'
 
 Every script prints `--help`.

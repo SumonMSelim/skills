@@ -37,11 +37,18 @@ for f in /etc/systemd/system/php*-fpm.service.d/*php2shell* /etc/systemd/system/
   [ -f "$f" ] && found "systemd override (cgroup limit, keep unless it causes OOM kills): $f"
 done
 for r in "${ROOTS[@]}"; do
-  while read -r f; do found "per-dir stopgap: $f"; done < <(command find "$r" -xdev -maxdepth 3 \( -name .htaccess -o -name .user.ini \) -type f -exec $G -lE 'upload_progress|php2shell' {} + 2>/dev/null | head -20)
+  while read -r f; do found "per-dir stopgap: $f"; done < <(command find "$r" -xdev -maxdepth 3 \( -name .htaccess -o -name .user.ini \) -type f -exec grep -lE 'upload_progress|php2shell' {} + 2>/dev/null | head -20)
 done
 if command -v docker >/dev/null 2>&1; then
-  for f in $(docker ps -q 2>/dev/null | xargs -r docker inspect --format '{{index .Config.Labels "com.docker.compose.project.config_files"}}' 2>/dev/null | tr ',' '\n' | sort -u); do
+  USED=$(docker ps -q 2>/dev/null | xargs -r docker inspect --format '{{index .Config.Labels "com.docker.compose.project.config_files"}}' 2>/dev/null | tr ',' '\n' | sort -u)
+  for f in $USED; do
     [ -f "$f" ] && $G -qi 'php2shell' "$f" 2>/dev/null && found "compose override carrying the mitigation mount/limits: $f"
+  done
+  # Leftovers no running container uses (a deploy with -f compose.prod.yml ignores the override):
+  # still remove or archive them so nobody re-applies a stale stopgap later.
+  for d in $(docker ps -q 2>/dev/null | xargs -r docker inspect --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' 2>/dev/null | sort -u); do
+    [ -d "$d" ] || continue
+    while read -r f; do printf '%s\n' "$USED" | $G -qxF "$f" && continue; found "unused leftover in compose project (not loaded by running containers; archive it): $f"; done < <(command find "$d" -maxdepth 2 \( -name '*.yml' -o -name '*.yaml' -o -name '*.ini' -o -name '*.bak*' \) -type f -exec grep -liE 'php2shell' {} + 2>/dev/null | head -20)
   done
 fi
 if command -v ufw >/dev/null 2>&1; then

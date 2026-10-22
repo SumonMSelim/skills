@@ -21,6 +21,7 @@ Files in this skill:
 - `scripts/php-fpm-probe.py`     FastCGI client: read the *effective* web-SAPI ini values from a running PHP-FPM (CLI values lie)
 - `scripts/cf-origin-lockdown.sh` lock the origin firewall (ufw) to Cloudflare ranges, closing the direct-IP bypass (dry-run default, `--apply` to enforce)
 - `scripts/php-hunt.sh`          read-only detection sweep: segfaults, odd child processes, webroot changes, session artefacts
+- `scripts/php-recovery-check.sh` read-only: lists every temporary measure still on the host and prints the post-patch checklist (remove blocks, test uploads)
 - `reference/facts.md`           what is confirmed vs. unverified, timeline, sources (re-verify, see step 1)
 - `reference/internals.md`       how rfc1867 + session.upload_progress work, what each ini knob really does and does not do
 - `reference/mitigations.md`     edge/WAF/nginx/Apache/Cloudflare/ModSecurity snippets, per-SAPI ini placement
@@ -121,6 +122,11 @@ applied only after the user approves the exact change, and each rung breaks more
 
 Say which rung you recommend and why, in one line, then wait.
 
+Every rung you apply is a debt to collect after the patch. Name every file you create with
+`php2shell` in it (the templates already are) so `scripts/php-recovery-check.sh` can find it
+later, and before you finish, ask the user which URLs take uploads or multipart posts on each
+site and write that list into the report. Rung 2 silently breaks those until it is removed.
+
 
     scripts/php-mitigate.sh             # dry-run: shows what would be written where
     scripts/php-mitigate.sh --apply     # writes templates/zzz-php2shell-mitigation.ini into each conf.d
@@ -161,8 +167,13 @@ root, curl it, delete it immediately. `php -i` only shows CLI values and is not 
    or reload the proxy container in the same change (`reference/patching.md`).
 4. Verify: `scripts/php-check-release.sh` must say PATCHED, and the probe must report the fixed
    version on the serving SAPI. One real HTTP request must succeed end to end.
-5. Only then roll back the edge block and firewall rungs the user wants removed. Keep the ini
-   drop-in; it is good hygiene.
+5. Only then collect the debt: run `scripts/php-recovery-check.sh`, which lists every temporary
+   measure still present and prints the checklist. Remove each edge block (nginx / Apache include,
+   ModSecurity rule, Traefik router) and any "remove after patch" compose override, reload, then
+   **test every upload form and multipart endpoint** from the list gathered in step 3 with a real
+   request (`curl -F file=@x ...` or the browser). 403 = a block is still in place, 413 = a size
+   limit is now too low. Report which forms were tested. Keep the ini drop-in; it is good hygiene.
+   Do not call the host done until this step is complete.
 Hosts you cannot patch (shared hosting, PaaS, vendor images): give the user the exact question
 to send to the provider and keep the mitigation on until the provider confirms.
 
